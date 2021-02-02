@@ -295,6 +295,9 @@ def upload(config):
         with open(os.path.join(dist_dir, file_name), encoding='utf8') as f:
             module_files[os.path.splitext(file_name)[0]] = f.read()
 
+    with open(os.path.join('upload_contents', 'upload'), 'w') as f:
+        f.write(module_files['main'])
+
     if config.ptr:
         post_url = '{}/ptr/api/user/code'.format(config.url)
     else:

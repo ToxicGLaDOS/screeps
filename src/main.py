@@ -1,4 +1,5 @@
-import harvester
+from harvester import Harvester
+from builder import Builder
 # defs is a package which claims to export all constants and some JavaScript objects, but in reality does
 #  nothing. This is useful mainly when using an editor like PyCharm, so that it 'knows' that things like Object, Creep,
 #  Game, etc. do exist.
@@ -22,28 +23,24 @@ def main():
     Main game logic loop.
     """
 
-    # Run each creep
+    roles = {
+        'harvester': Harvester(),
+        'builder':   Builder()
+    }
+
+        # Run each creep
     for name in Object.keys(Game.creeps):
         creep = Game.creeps[name]
-        harvester.run_harvester(creep)
+        if creep.memory.role:
+            roles[creep.memory.role].run(creep)
+        else:
+            creep.say("No role")
 
     # Run each spawn
     for name in Object.keys(Game.spawns):
         spawn = Game.spawns[name]
         if not spawn.spawning:
-            # Get the number of our creeps in the room.
-            num_creeps = _.sum(Game.creeps, lambda c: c.pos.roomName == spawn.pos.roomName)
-            # If there are no creeps, spawn a creep once energy is at 250 or more
-            if num_creeps < 0 and spawn.room.energyAvailable >= 250:
-                spawn.createCreep([WORK, CARRY, MOVE, MOVE])
-            # If there are less than 15 creeps but at least one, wait until all spawns and extensions are full before
-            # spawning.
-            elif num_creeps < 15 and spawn.room.energyAvailable >= spawn.room.energyCapacityAvailable:
-                # If we have more energy, spawn a bigger creep.
-                if spawn.room.energyCapacityAvailable >= 350:
-                    spawn.createCreep([WORK, CARRY, CARRY, MOVE, MOVE, MOVE])
-                else:
-                    spawn.createCreep([WORK, CARRY, MOVE, MOVE])
-
+            if spawn.room.energyAvailable >= 200:
+                spawn.spawnCreep([WORK, CARRY, MOVE, MOVE], "Dood" + Game.time, {'memory': {'role':'builder'}})
 
 module.exports.loop = main
