@@ -36,6 +36,13 @@ class Harvester(Role):
             if not self.initalize(creep):
                 creep.say("init fail")
                 return
+
+        if creep.memory.curAction == "harvesting" and creep.store.getFreeCapacity() == 0:
+            creep.memory.curAction = "depositing"
+        elif creep.memory.curAction == "depositing" and creep.store.getUsedCapacity() == 0:
+            creep.memory.curAction = "harvesting"
+
+        
         if creep.memory.curAction == "harvesting":
             self.harvest(creep)
         elif creep.memory.curAction == "depositing":
@@ -53,29 +60,25 @@ class Harvester(Role):
             else:
                 creep.say("h err: " + err)
 
-        if creep.store.getFreeCapacity() == 0:
-            creep.memory.curAction = "depositing"
-            self.deposit(creep)
-
 
     def deposit(self, creep: Creep):
         container = self.getClosestContainer(creep.pos)
+
+        # Fallback to putting into spawn
+        if not container:
+            container = Object.values(Game.spawns)[0]
         err = creep.transfer(container, RESOURCE_ENERGY)
 
         if err != OK:
             if err == ERR_NOT_IN_RANGE:
                 creep.moveTo(container, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ff0000', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             elif err == ERR_FULL:
-                pass
+                creep.memory.curAction = "harvesting"
             elif err == ERR_NOT_ENOUGH_RESOURCES:
                 pass
             else:
                 creep.say("t err: " + err)
             
-        if creep.store.getUsedCapacity() == 0:
-            creep.memory.curAction = "harvesting"
-            self.harvest(creep)
-
     def getOtherCreepDests(self):
         """
         Gets a list of object ids with which all creeps intend to interact with (creep.memory.dest specifically)
@@ -85,4 +88,4 @@ class Harvester(Role):
         return [creep.memory.dest for creep in Object.values(Game.creeps) if creep.memory.role == "harvester"]
     
     def getClosestContainer(self, pos:RoomPosition):
-        return pos.findClosestByPath(FIND_STRUCTURES, {filter: lambda struct: struct.structureType == STRUCTURE_CONTAINER})
+        return pos.findClosestByPath(FIND_STRUCTURES, {'filter': {'structureType': STRUCTURE_CONTAINER}})

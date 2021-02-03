@@ -76,14 +76,18 @@ class Builder(Role):
             if err == ERR_NOT_IN_RANGE:
                 creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#00ff00', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             elif err == ERR_NOT_ENOUGH_RESOURCES:
-                creep.memory.curAction = "charging"
+                creep.memory.curAction = "charging" # TODO: Replace with calculating state during run() function like other roles
             else:
                 creep.say("b err: " + err) 
 
 
     def charge(self, creep: Creep):
         target = self.getClosestContainer(creep.pos)
-        console.log(target)
+
+        # Fallback to pulling from spawn
+        if not target:
+            target = Object.values(Game.spawns)[0]
+
         err = creep.withdraw(target, RESOURCE_ENERGY)
 
         if err != OK:
@@ -96,6 +100,7 @@ class Builder(Role):
             else:
                 creep.say("w err: " + err) 
 
+    # TODO: Pretty sure this 'filter' isn't correct. Should replace with list comp
     def getClosestContainer(self, pos:RoomPosition):
         return pos.findClosestByPath(FIND_STRUCTURES, {'filter': lambda struct: struct.structureType == STRUCTURE_CONTAINER and struct.store.getUsedCapacity() > 0})
 
