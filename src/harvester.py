@@ -18,7 +18,7 @@ class Harvester(Role):
     def getBodyParts(self, spawner: StructureSpawn):
         base = [MOVE, CARRY, WORK]
         cost = sum([BODYPART_COST[part] for part in base])
-        while cost < spawner.room.energyCapacityAvailable:
+        while cost <= spawner.room.energyCapacityAvailable:
             base.append(WORK)
             cost += BODYPART_COST[WORK]
         # Pop the one that set us over off (negative indices don't work D:)

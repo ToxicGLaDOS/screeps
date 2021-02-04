@@ -33,7 +33,7 @@ class Builder(Role):
         cost = sum([BODYPART_COST[part] for part in base])
         nextPart = MOVE
         # Cycle through adding MOVE -> CARRY -> WORK until too expensive
-        while cost < spawner.room.energyCapacityAvailable:
+        while cost <= spawner.room.energyCapacityAvailable:
             if nextPart == MOVE:
                 base.append(MOVE)
                 cost += BODYPART_COST[MOVE]
