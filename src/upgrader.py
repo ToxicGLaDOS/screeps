@@ -1,6 +1,5 @@
 from defs import *
 from role import Role
-import math
 
 __pragma__('noalias', 'name')
 __pragma__('noalias', 'undefined')
@@ -13,65 +12,66 @@ __pragma__('noalias', 'type')
 __pragma__('noalias', 'update')
 
 
-class Distributor(Role):
+
+class Upgrader(Role):
     collectionPriority = {
         STRUCTURE_CONTAINER: 0,
         STRUCTURE_STORAGE: 1
     }
-    depositPriority = {
-        STRUCTURE_EXTENSION: 0,
-        STRUCTURE_SPAWN: 1,
-        STRUCTURE_TOWER: 2,
-        STRUCTURE_STORAGE: 3,
-        STRUCTURE_CONTAINER: 4
-    }
     def __init__(self):
-        super().__init__()
-    
+        pass
+
     def getBodyParts(self, spawner: StructureSpawn):
-        numCarrys = math.floor(spawner.room.energyCapacityAvailable / (BODYPART_COST[MOVE]/ 2 +  BODYPART_COST[CARRY]))
-        numMoves = math.ceil(numCarrys / 2) # Using ceil means we'll get moves before carrys
-        body = []
-        for x in range(numCarrys):
-            body.append(CARRY)
-        for x in range(numMoves):
-            body.append(MOVE)
-        
-        # Sanity check
-        cost = sum([BODYPART_COST[part] for part in body])
-        if cost > spawner.room.energyCapacityAvailable:
-            print("Can't spawn distributor. Math is wrong :(")
-        
-        return body
+        base = [MOVE, CARRY, WORK]
+        cost = sum([BODYPART_COST[part] for part in base])
+        nextPart = MOVE
+        # Cycle through adding MOVE -> CARRY -> WORK until too expensive
+        while cost <= spawner.room.energyCapacityAvailable:
+            if nextPart == MOVE:
+                base.append(MOVE)
+                cost += BODYPART_COST[MOVE]
+                nextPart = CARRY
+            elif nextPart == CARRY:
+                base.append(CARRY)
+                cost += BODYPART_COST[CARRY]
+                nextPart = WORK
+            elif nextPart == WORK:
+                base.append(WORK)
+                cost += BODYPART_COST[WORK]
+                nextPart = MOVE
+        base.pop(len(base)-1)
+        return base
+
 
     def initalize(self, creep: Creep):
-        creep.memory.role = "distributor"
+        creep.memory.role = "upgrader"
         creep.memory.curAction = "charging"
-        self.chooseTarget(creep)
 
     def run(self, creep: Creep):
         if not creep.memory.role or not creep.memory.curAction:
             self.initalize(creep)
         
         if creep.memory.curAction == "charging" and creep.store.getFreeCapacity() == 0:
-            creep.memory.curAction = "distributing"
+            creep.memory.curAction = "upgrading"
             self.chooseTarget(creep)
-        elif creep.memory.curAction == "distributing" and creep.store.getUsedCapacity() == 0:
+        elif creep.memory.curAction == "upgrading" and creep.store.getUsedCapacity() == 0:
             creep.memory.curAction = "charging"
             self.chooseTarget(creep)
  
         if creep.memory.curAction == "charging":
             self.charge(creep)
-        elif creep.memory.curAction == "distributing":
-            self.distribute(creep)
+        elif creep.memory.curAction == "upgrading":
+            self.upgrade(creep)
     
     def chooseTarget(self, creep: Creep):
         if creep.memory.curAction == "charging":
             target = self.getClosestContainer(creep)
             creep.memory.dest = target.id if target != None else None
-        elif creep.memory.curAction == "distributing":
-            target = self.getBestDeposit(creep)
+        elif creep.memory.curAction == "upgrading":
+            roomControllers = [struct for struct in creep.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTROLLER]
+            target = roomControllers[0] if len(roomControllers) > 0 else None
             creep.memory.dest = target.id if target != None else None
+    
 
     def charge(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
@@ -95,29 +95,23 @@ class Distributor(Role):
             else:
                 creep.say("w err: " + err)
 
-    def distribute(self, creep: Creep):
+    def upgrade(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
-        # Target could be None here because it was destroyed
-        if not target or target.store.getFreeCapacity(RESOURCE_ENERGY) == 0:
-            self.chooseTarget(creep)
-            target = Game.getObjectById(creep.memory.dest)
-            # This can happen if the creep is surrounded and can't path to anything
-            # or if there really are no valid targets
-            if not target:
-                creep.say("No target")
-                return
+        if not target:
+            creep.say("No target")
+            return
 
-        err = creep.transfer(target, RESOURCE_ENERGY)
+        err = creep.upgradeController(target)
 
         if err != OK:
             if err == ERR_NOT_IN_RANGE:
-                creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#0000ff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
+                creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ff00ff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             else:
-                creep.say("t err: " + err)
+                creep.say("u err: " + err)
         
     def getClosestContainer(self, creep: Creep):
         structures = [struct for struct in creep.room.find(FIND_STRUCTURES) if  
-                    Object.keys(Distributor.collectionPriority).includes(struct.structureType) and self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity()]
+                    Object.keys(Upgrader.collectionPriority).includes(struct.structureType) and self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity()]
         
 
         if len(structures) == 0:
@@ -138,33 +132,7 @@ class Distributor(Role):
             return creep.pos.findClosestByPath(structures)
     
     def prioritizeCollection(self, structure: Structure):
-        if Object.keys(Distributor.collectionPriority).includes(structure.structureType):
-            return Distributor.collectionPriority[structure.structureType]
+        if Object.keys(Upgrader.collectionPriority).includes(structure.structureType):
+            return Upgrader.collectionPriority[structure.structureType]
         else:
             return float('inf')
-
-
-    def getBestDeposit(self, creep: Creep):
-        deposits = [struct for struct in creep.room.find(FIND_STRUCTURES) if 
-                    Object.keys(Distributor.depositPriority).includes(struct.structureType) and struct.store.getFreeCapacity(RESOURCE_ENERGY) > 0]
-        deposits = [struct for struct in deposits if struct.structureType != STRUCTURE_CONTAINER or len(struct.pos.findInRange(FIND_SOURCES, 4)) == 0]
-        if len(deposits) == 0:
-            return None
-
-        # Get the highest priority structure type
-        # Would use min() but the javascript translation doesn't seem to use the key argument
-        highestPriorityType = sorted(deposits, key=self.prioritizeDeposit)[0].structureType
-        # Filter out low priority structures
-        deposits = [struct for struct in deposits if struct.structureType == highestPriorityType]
-        return creep.pos.findClosestByPath(deposits)
-
-
-        return deposits[0]
-    
-    def prioritizeDeposit(self, structure: Structure):
-        if Object.keys(Distributor.depositPriority).includes(structure.structureType):
-            return Distributor.depositPriority[structure.structureType]
-        else:
-            return float('inf')
-
-

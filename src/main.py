@@ -1,6 +1,7 @@
 from harvester import Harvester
 from builder import Builder
 from distributor import Distributor
+from upgrader import Upgrader
 # defs is a package which claims to export all constants and some JavaScript objects, but in reality does
 #  nothing. This is useful mainly when using an editor like PyCharm, so that it 'knows' that things like Object, Creep,
 #  Game, etc. do exist.
@@ -27,14 +28,23 @@ def main():
     roles = {
         'harvester': Harvester(),
         'builder':   Builder(),
-        'distributor': Distributor()
+        'distributor': Distributor(),
+        'upgrader': Upgrader()
     }
 
     targetCreeps = {
 
         'harvester': 5,
         'distributor': 3,
+        'upgrader': 5,
         'builder':   3
+    }
+
+    containerTextStyle = {
+        'color': '#ffffff',
+        'font': '10px',
+        'stroke': '#000000',
+        'strokeWidth': .15
     }
     #print("CPU Usage: " + Game.cpu.getUsed())
     # Run each creep
@@ -47,7 +57,10 @@ def main():
 
     # Run each spawn
     for name in Object.keys(Game.spawns):
+
         spawn = Game.spawns[name]
+        for container in [struct for struct in spawn.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER]:
+            spawn.room.visual.text(roles['harvester'].getContainerFutureEnergy(container), container.pos, containerTextStyle)
         if not spawn.spawning:
             for roleName in Object.keys(targetCreeps):
                 numTargetCreeps = len([creepName for creepName in Object.keys(Game.creeps) if Game.creeps[creepName].memory.role == roleName])

@@ -104,7 +104,7 @@ class Builder(Role):
         err = creep.build(target)
         if err != OK:
             if err == ERR_NOT_IN_RANGE:
-                creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#00ff00', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
+                creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#0000ff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             elif err == ERR_INVALID_TARGET:
                 self.chooseTarget(creep)
             else:
@@ -139,6 +139,6 @@ class Builder(Role):
             creep.memory.dest = target.id if target != None else None
     
     def getClosestContainer(self, creep: Creep):
-        containers = [struct for struct in creep.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER and self.getContainerFutureEnergy(struct) > 0]
+        containers = [struct for struct in creep.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER and self.getContainerFutureEnergy(struct) > creep.store.getFreeCapacity(RESOURCE_ENERGY)]
 
         return creep.pos.findClosestByPath(containers)

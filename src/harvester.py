@@ -66,7 +66,7 @@ class Harvester(Role):
 
         if err != OK:
             if err == ERR_NOT_IN_RANGE:
-                creep.moveTo(source, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ff0000', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
+                creep.moveTo(source, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ffffff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             elif err == ERR_NOT_ENOUGH_RESOURCES:
                 pass
             else:
@@ -83,7 +83,7 @@ class Harvester(Role):
 
         if err != OK:
             if err == ERR_NOT_IN_RANGE:
-                creep.moveTo(container, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ff0000', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
+                creep.moveTo(container, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ffffff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             elif err == ERR_FULL:
                 creep.memory.curAction = "harvesting"
             elif err == ERR_NOT_ENOUGH_RESOURCES:
