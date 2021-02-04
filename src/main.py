@@ -32,12 +32,12 @@ def main():
 
     targetCreeps = {
 
-        'distributor': 4,
-        'harvester': 8,
+        'harvester': 5,
+        'distributor': 3,
         'builder':   3
     }
-
-        # Run each creep
+    #print("CPU Usage: " + Game.cpu.getUsed())
+    # Run each creep
     for name in Object.keys(Game.creeps):
         creep = Game.creeps[name]
         if creep.memory.role:
@@ -49,11 +49,13 @@ def main():
     for name in Object.keys(Game.spawns):
         spawn = Game.spawns[name]
         if not spawn.spawning:
-            if spawn.room.energyAvailable >= 250:
-                for roleName in Object.keys(targetCreeps):
-                    numTargetCreeps = len([creepName for creepName in Object.keys(Game.creeps) if Game.creeps[creepName].memory.role == roleName])
-                    if numTargetCreeps < targetCreeps[roleName]:
-                        spawn.spawnCreep([WORK, CARRY, MOVE, MOVE], roleName + "_" + Game.time, {'memory': {'role':roleName}})
+            for roleName in Object.keys(targetCreeps):
+                numTargetCreeps = len([creepName for creepName in Object.keys(Game.creeps) if Game.creeps[creepName].memory.role == roleName])
+                if numTargetCreeps < targetCreeps[roleName]:
+                    bodyParts = roles[roleName].getBodyParts(spawn)
+                    cost = sum([BODYPART_COST[part] for part in bodyParts])
+                    if cost <= spawn.room.energyAvailable:
+                        spawn.spawnCreep(bodyParts, roleName + "_" + Game.time, {'memory': {'role':roleName}})
                         break # Break because multiple calls to spawn seems to spawn the last one
 
 module.exports.loop = main

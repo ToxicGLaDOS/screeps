@@ -31,3 +31,19 @@ class Role(object):
         :rtype: bool
         """
         print("Role.initalize shouldn't be called directly. This method is supposed to be overridden. Creep id: " + creep.id)
+    
+    def getBodyParts(self, spawner: StructureSpawn):
+        """
+        :param StructureSpawn spawner: The spawner that's going to spawn the creep
+        :return: A list of body parts to use for spawning the creep
+        :rtype: list
+        """
+        print("Role.getBodyParts shouldn't be called directly. This method is supposed to be overridden.")
+    
+
+    def getContainerFutureEnergy(self, container: StructureContainer):
+        creepsTargetingContainer = [Game.creeps[creepName] for creepName in Object.keys(Game.creeps) if Game.creeps[creepName].memory.dest == container.id]
+        creepsWithdrawing = [creep for creep in creepsTargetingContainer if creep.memory.curAction == "charging"]
+        totalWithdrawAmount = sum([creep.store.getFreeCapacity(RESOURCE_ENERGY) for creep in creepsWithdrawing])
+        # TODO: Account for energy deposits coming in
+        return container.store.getUsedCapacity(RESOURCE_ENERGY) - totalWithdrawAmount

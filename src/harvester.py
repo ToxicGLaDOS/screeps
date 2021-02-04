@@ -14,6 +14,16 @@ __pragma__('noalias', 'update')
 class Harvester(Role):
     def __init__(self):
         super().__init__()
+    
+    def getBodyParts(self, spawner: StructureSpawn):
+        base = [MOVE, CARRY, WORK]
+        cost = sum([BODYPART_COST[part] for part in base])
+        while cost < spawner.room.energyCapacityAvailable:
+            base.append(WORK)
+            cost += BODYPART_COST[WORK]
+        # Pop the one that set us over off (negative indices don't work D:)
+        base.pop(len(base)-1)
+        return base
 
     def initalize(self, creep: Creep):
         creep.memory.role = "harvester"
@@ -26,8 +36,10 @@ class Harvester(Role):
         # Use a list comp in a dict comp here because list.count() isn't a method in javascript :(
         useCounts = {source.id:len([dest for dest in creepDests if dest == source.id]) for source in sources}
         minValue = min(Object.values(useCounts))
-        minUsed = [source for source in Object.keys(useCounts) if useCounts[source] == minValue]
-        creep.memory.dest = minUsed[0] #TODO: Instead of picking the first one pick the closest one
+        minUsed = [Game.getObjectById(sourceID) for sourceID in Object.keys(useCounts) if useCounts[sourceID] == minValue]
+        # We ignore creeps because we don't want creeps to be the reason a location doesn't get picked (they'll move soon enough hopefully)
+        target = creep.pos.findClosestByPath(minUsed, {'ignoreCreeps': True})
+        creep.memory.dest = target.id if target != None else None
         return True
 
     def run(self, creep: Creep):
