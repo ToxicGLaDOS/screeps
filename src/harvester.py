@@ -1,5 +1,6 @@
 from defs import *
 from role import Role
+import math
 
 __pragma__('noalias', 'name')
 __pragma__('noalias', 'undefined')
@@ -18,11 +19,11 @@ class Harvester(Role):
     def getBodyParts(self, spawner: StructureSpawn):
         base = [MOVE, CARRY, WORK]
         cost = sum([BODYPART_COST[part] for part in base])
-        while cost <= spawner.room.energyCapacityAvailable:
+        extraWorks = math.floor(spawner.room.energyCapacityAvailable - cost / BODYPART_COST[WORK])
+        # One creep is enough to mine out a source with enough work parts
+        extraWorks = min(extraWorks, 9)
+        for x in range(extraWorks):
             base.append(WORK)
-            cost += BODYPART_COST[WORK]
-        # Pop the one that set us over off (negative indices don't work D:)
-        base.pop(len(base)-1)
         return base
 
     def initalize(self, creep: Creep):
@@ -37,8 +38,10 @@ class Harvester(Role):
         useCounts = {source.id:len([dest for dest in creepDests if dest == source.id]) for source in sources}
         minValue = min(Object.values(useCounts))
         minUsed = [Game.getObjectById(sourceID) for sourceID in Object.keys(useCounts) if useCounts[sourceID] == minValue]
+        creeps = [creep for creep in Object.values(Game.creeps)]
+        soonestDeaths = sorted(minUsed, key=lambda source: min([creep.ticksToLive for creep in creeps if creep.memory.dest == source.id]))
         # We ignore creeps because we don't want creeps to be the reason a location doesn't get picked (they'll move soon enough hopefully)
-        target = creep.pos.findClosestByPath(minUsed, {'ignoreCreeps': True})
+        target = soonestDeaths[0]
         creep.memory.dest = target.id if target != None else None
         return True
 
@@ -61,16 +64,24 @@ class Harvester(Role):
             self.deposit(creep)
 
     def harvest(self, creep: Creep):
-        source = Game.getObjectById(creep.memory.dest)
-        err = creep.harvest(source)
+        droppedResources = creep.pos.findInRange(FIND_DROPPED_RESOURCES, 0)
+        if len(droppedResources) > 0:
+            err = creep.pickup(droppedResources[0])
 
-        if err != OK:
-            if err == ERR_NOT_IN_RANGE:
-                creep.moveTo(source, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ffffff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
-            elif err == ERR_NOT_ENOUGH_RESOURCES:
-                pass
-            else:
-                creep.say("h err: " + err)
+            if err != OK:
+                creep.say("p err: " + err)
+
+        else:
+            source = Game.getObjectById(creep.memory.dest)
+            err = creep.harvest(source)
+
+            if err != OK:
+                if err == ERR_NOT_IN_RANGE:
+                    creep.moveTo(source, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ffffff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
+                elif err == ERR_NOT_ENOUGH_RESOURCES:
+                    creep.moveTo(source, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ffffff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
+                else:
+                    creep.say("h err: " + err)
 
 
     def deposit(self, creep: Creep):
