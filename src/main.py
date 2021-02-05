@@ -2,6 +2,8 @@ from harvester import Harvester
 from builder import Builder
 from distributor import Distributor
 from upgrader import Upgrader
+from remoteHarvester import RemoteHarvester
+from reserver import Reserver
 # defs is a package which claims to export all constants and some JavaScript objects, but in reality does
 #  nothing. This is useful mainly when using an editor like PyCharm, so that it 'knows' that things like Object, Creep,
 #  Game, etc. do exist.
@@ -29,15 +31,18 @@ def main():
         'harvester': Harvester(),
         'builder':   Builder(),
         'distributor': Distributor(),
-        'upgrader': Upgrader()
+        'upgrader': Upgrader(),
+        'remoteHarvester': RemoteHarvester('E41N41', 'E42N41'),
+        'reserver': Reserver('E41N41', 'E42N41')
     }
 
     targetCreeps = {
-
-        'harvester': 5,
-        'distributor': 3,
-        'upgrader': 5,
-        'builder':   3
+        'harvester': 3,
+        'distributor': 4,
+        'reserver': 1,
+        'remoteHarvester': 6,
+        'upgrader': 4,
+        'builder':   3,
     }
 
     containerTextStyle = {
@@ -50,7 +55,7 @@ def main():
     # Run each creep
     for name in Object.keys(Game.creeps):
         creep = Game.creeps[name]
-        if creep.memory.role:
+        if Object.keys(targetCreeps).includes(creep.memory.role):
             roles[creep.memory.role].run(creep)
         else:
             creep.say("No role")

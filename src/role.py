@@ -44,6 +44,8 @@ class Role(object):
     def getContainerFutureEnergy(self, container: StructureContainer):
         creepsTargetingContainer = [Game.creeps[creepName] for creepName in Object.keys(Game.creeps) if Game.creeps[creepName].memory.dest == container.id]
         creepsWithdrawing = [creep for creep in creepsTargetingContainer if creep.memory.curAction == "charging"]
+        creepsDepositing = [creep for creep in creepsTargetingContainer if creep.memory.curAction == "distributing" or creep.memory.curAction == "depositing"]
         totalWithdrawAmount = sum([creep.store.getFreeCapacity(RESOURCE_ENERGY) for creep in creepsWithdrawing])
-        # TODO: Account for energy deposits coming in
-        return container.store.getUsedCapacity(RESOURCE_ENERGY) - totalWithdrawAmount
+        totalDepositAmount  = sum([creep.store.getFreeCapacity(RESOURCE_ENERGY) for creep in creepsDepositing])
+
+        return container.store.getUsedCapacity(RESOURCE_ENERGY)  + totalDepositAmount - totalWithdrawAmount
