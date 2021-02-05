@@ -71,20 +71,20 @@ class RemoteHarvester(Role):
 
     def harvest(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
-        # Target could be None here because it was destroyed
+        # Target could be None here because we don't have vision on the room
         if not target:
             self.chooseTarget(creep)
             target = Game.getObjectById(creep.memory.dest)
-            # This can happen if the creep is surrounded and can't path to anything
-            # or if there really are no valid targets
-            if not target:
-                creep.say("No target")
-                return
+            roomExitDir = Game.map.findExit(creep.room, self.remoteRoom)
+            roomExit = creep.pos.findClosestByRange(roomExitDir)
+            creep.moveTo(roomExit)
+            creep.say("No target")
+            return
 
         err = creep.harvest(target)
 
         if err != OK:
-            if err == ERR_NOT_IN_RANGE:
+            if err == ERR_NOT_IN_RANGE or err == ERR_NOT_ENOUGH_RESOURCES:
                 creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ffffff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             else:
                 creep.say("h err: " + err)
@@ -106,7 +106,7 @@ class RemoteHarvester(Role):
     def getClosestContainer(self, creep: Creep):
         homeRoom = Game.rooms[self.homeRoom]
         structures = [struct for struct in homeRoom.find(FIND_STRUCTURES) if  
-                    [STRUCTURE_STORAGE].includes(struct.structureType) and self.getContainerFutureEnergy(struct) >= creep.store.getUsedCapacity()]
+                    [STRUCTURE_STORAGE].includes(struct.structureType) and self.getContainerFutureEnergy(struct) + creep.store.getUsedCapacity() <= struct.store.getCapacity()]
         return structures[0] if structures != None else None
         #nonHarvesterContainers = [struct for struct in structures if len(struct.pos.findInRange(FIND_SOURCES, 4)) > 0]
         #if len(structures) == 0:
@@ -119,6 +119,9 @@ class RemoteHarvester(Role):
     
     def getBestSource(self, creep: Creep):
         remoteRoom = Game.rooms[self.remoteRoom]
+        if remoteRoom == None:
+            creep.say("bad remote")
+            return None
         creepDests = [creep.memory.dest for creep in Object.values(Game.creeps)]
         sources = remoteRoom.find(FIND_SOURCES)
         target = sources[random.randint(0, len(sources)-1)]

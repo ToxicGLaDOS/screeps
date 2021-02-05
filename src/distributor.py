@@ -85,15 +85,20 @@ class Distributor(Role):
                 creep.say("No target")
                 return
 
-        err = creep.withdraw(target, RESOURCE_ENERGY)
-
+        err = creep.pickup(target)
         if err != OK:
             if err == ERR_NOT_IN_RANGE:
                 creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#00ff00', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
-            elif err == ERR_NOT_ENOUGH_ENERGY:
-                creep.say("con empty")
-            else:
-                creep.say("w err: " + err)
+            elif err == ERR_INVALID_TARGET:
+                err = creep.withdraw(target, RESOURCE_ENERGY)
+
+                if err != OK:
+                    if err == ERR_NOT_IN_RANGE:
+                        creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#00ff00', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
+                    elif err == ERR_NOT_ENOUGH_ENERGY:
+                        creep.say("con empty")
+                    else:
+                        creep.say("w err: " + err)
 
     def distribute(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
@@ -116,32 +121,35 @@ class Distributor(Role):
                 creep.say("t err: " + err)
         
     def getClosestContainer(self, creep: Creep):
-        structures = [struct for struct in creep.room.find(FIND_STRUCTURES) if  
-                    Object.keys(Distributor.collectionPriority).includes(struct.structureType) and self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity()]
-        
-
-        if len(structures) == 0:
-            return None
-        # Get the highest priority structure type
-        # Would use min() but the javascript translation doesn't seem to use the key argument
-        highestPriorityType = sorted(structures, key=self.prioritizeCollection)[0].structureType
-        # Filter out low priority structures
-        structures = [struct for struct in structures if struct.structureType == highestPriorityType]
-        harvesterContainers = [struct for struct in structures if len(struct.pos.findInRange(FIND_SOURCES, 4)) > 0]
-
-        # If there are containers near harvesters that are good we prioritize those
-        # even if they're further away. This prevents creeps from repeatedly depositing and withdrawing
-        # in the same container when they could be hauling from harvester containers
-        if len(harvesterContainers) > 0:
-            return creep.pos.findClosestByPath(harvesterContainers)
+        droppedResources = creep.room.find(FIND_DROPPED_RESOURCES)
+        if len(droppedResources) > 0:
+            return creep.pos.findClosestByPath(droppedResources)
         else:
-            return creep.pos.findClosestByPath(structures)
-    
-    def prioritizeCollection(self, structure: Structure):
-        if Object.keys(Distributor.collectionPriority).includes(structure.structureType):
-            return Distributor.collectionPriority[structure.structureType]
-        else:
-            return float('inf')
+            structures = [struct for struct in creep.room.find(FIND_STRUCTURES) if
+                        Object.keys(Distributor.collectionPriority).includes(struct.structureType) and
+                        (self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity() or self.getContainerFutureEnergy(struct) >= struct.store.getCapacity())]
+
+            if len(structures) == 0:
+                return None
+            # Get the highest priority structure type
+            # Would use min() but the javascript translation doesn't seem to use the key argument
+            highestPriorityType = sorted(structures, key=self.prioritizeCollection)[0].structureType
+            # Filter out low priority structures
+            structures = [struct for struct in structures if struct.structureType == highestPriorityType]
+            harvesterContainers = [struct for struct in structures if len(struct.pos.findInRange(FIND_SOURCES, 4)) > 0]
+            # If there are containers near harvesters that are good we prioritize those
+            # even if they're further away. This prevents creeps from repeatedly depositing and withdrawing
+            # in the same container when they could be hauling from harvester containers
+            if len(harvesterContainers) > 0:
+                return creep.pos.findClosestByPath(harvesterContainers)
+            else:
+                return creep.pos.findClosestByPath(structures)
+
+        def prioritizeCollection(self, structure: Structure):
+            if Object.keys(Distributor.collectionPriority).includes(structure.structureType):
+                return Distributor.collectionPriority[structure.structureType]
+            else:
+                return float('inf')
 
 
     def getBestDeposit(self, creep: Creep):

@@ -16,6 +16,7 @@ __pragma__('noalias', 'name')
 __pragma__('noalias', 'undefined')
 __pragma__('noalias', 'Infinity')
 __pragma__('noalias', 'keys')
+__pragma__('noalias', 'values')
 __pragma__('noalias', 'get')
 __pragma__('noalias', 'set')
 __pragma__('noalias', 'type')
@@ -38,9 +39,9 @@ def main():
 
     targetCreeps = {
         'harvester': 3,
-        'distributor': 4,
+        'distributor': 3,
+        'remoteHarvester': 4,
         'reserver': 1,
-        'remoteHarvester': 6,
         'upgrader': 4,
         'builder':   3,
     }
@@ -59,12 +60,24 @@ def main():
             roles[creep.memory.role].run(creep)
         else:
             creep.say("No role")
+    homeRoom = Object.values(Game.spawns)[0].room
+    towers = [struct for struct in homeRoom.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_TOWER]
+    structures = sorted(homeRoom.find(FIND_STRUCTURES), key=lambda struct: struct.hits)
+    hostiles = homeRoom.find(FIND_HOSTILE_CREEPS)
+    for tower in towers:
+        for structure in structures:
+            if structure.hits < structure.hitsMax and structure.hits < 100000:
+                tower.repair(structure)
+                break
+        if len(hostiles) > 0:
+            tower.rangedAttack(tower.pos.findClosestByPath(hostiles))
+            break
 
     # Run each spawn
     for name in Object.keys(Game.spawns):
 
         spawn = Game.spawns[name]
-        for container in [struct for struct in spawn.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER]:
+        for container in [struct for struct in spawn.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER or struct.structureType == STRUCTURE_STORAGE]:
             spawn.room.visual.text(roles['harvester'].getContainerFutureEnergy(container), container.pos, containerTextStyle)
         if not spawn.spawning:
             for roleName in Object.keys(targetCreeps):
