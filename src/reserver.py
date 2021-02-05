@@ -19,13 +19,22 @@ class Reserver(Role):
         self.remoteRoom = remoteRoom
 
     def getBodyParts(self, spawner: StructureSpawn):
-        base = [MOVE, CLAIM]
-        cost = sum([BODYPART_COST[part] for part in base])
-        additionalClaims = math.floor(spawner.room.energyCapacityAvailable / BODYPART_COST[CLAIM])
-        for x in range(additionalClaims):
-            base.append(CLAIM)
+        # Should create equal amounts of MOVE and CLAIM parts
+        numClaims = math.floor(spawner.room.energyCapacityAvailable / (BODYPART_COST[CLAIM] +  BODYPART_COST[MOVE]))
+        numMoves = numClaims
 
-        return base
+        body = []
+        for x in range(numClaims):
+            body.append(CLAIM)
+        for x in range(numMoves):
+            body.append(MOVE)
+
+        # Sanity check
+        cost = sum([BODYPART_COST[part] for part in body])
+        if cost > spawner.room.energyCapacityAvailable:
+            print("Can't spawn reserver. Math is wrong :(")
+
+        return body
 
     def initalize(self, creep: Creep):
         creep.memory.role = "reserver"
