@@ -114,9 +114,12 @@ class Builder(Role):
     def charge(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
 
-        # Fallback to pulling from spawn
         if not target:
-            target = Object.values(Game.spawns)[0]
+            self.chooseTarget(creep)
+            target = Game.getObjectById(creep.memory.dest)
+            if not target:
+                # Fallback to pulling from spawn
+                target = Object.values(Game.spawns)[0]
 
         err = creep.withdraw(target, RESOURCE_ENERGY)
 
@@ -139,6 +142,6 @@ class Builder(Role):
             creep.memory.dest = target.id if target != None else None
     
     def getClosestContainer(self, creep: Creep):
-        containers = [struct for struct in creep.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER and self.getContainerFutureEnergy(struct) > creep.store.getFreeCapacity(RESOURCE_ENERGY)]
+        containers = [struct for struct in creep.room.find(FIND_STRUCTURES) if (struct.structureType == STRUCTURE_CONTAINER or struct.structureType == STRUCTURE_STORAGE) and self.getContainerFutureEnergy(struct) > creep.store.getFreeCapacity(RESOURCE_ENERGY)]
 
         return creep.pos.findClosestByPath(containers)
