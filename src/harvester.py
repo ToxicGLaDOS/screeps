@@ -17,14 +17,38 @@ class Harvester(Role):
         super().__init__()
     
     def getBodyParts(self, spawner: StructureSpawn):
+        areDistributors = len([creep for creep in Object.values(Game.creeps) if creep.memory.role == 'distributor']) > 0
+        areContainers = len([struct for struct in spawner.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER]) > 0
         base = [MOVE, CARRY, WORK]
         cost = sum([BODYPART_COST[part] for part in base])
-        extraWorks = math.floor(spawner.room.energyCapacityAvailable - cost / BODYPART_COST[WORK])
-        # One creep is enough to mine out a source with enough work parts
-        extraWorks = min(extraWorks, 9)
-        for x in range(extraWorks):
-            base.append(WORK)
-        return base
+
+        if areDistributors and areContainers:
+            extraWorks = math.floor(spawner.room.energyCapacityAvailable - cost / BODYPART_COST[WORK])
+            # One creep is enough to mine out a source with enough work parts
+            extraWorks = min(extraWorks, 9)
+            for x in range(extraWorks):
+                base.append(WORK)
+            return base
+        else:
+            nextPart = MOVE
+            if spawner.room.energyAvailable > 250:
+                # Cycle through adding MOVE -> CARRY -> WORK until too expensive
+                while cost <= spawner.room.energyAvailable:
+                    if nextPart == MOVE:
+                        base.append(MOVE)
+                        cost += BODYPART_COST[MOVE]
+                        nextPart = CARRY
+                    elif nextPart == CARRY:
+                        base.append(CARRY)
+                        cost += BODYPART_COST[CARRY]
+                        nextPart = WORK
+                    elif nextPart == WORK:
+                        base.append(WORK)
+                        cost += BODYPART_COST[WORK]
+                        nextPart = MOVE
+                base.pop(len(base)-1)
+            return base
+
 
     def initalize(self, creep: Creep):
         creep.memory.role = "harvester"
@@ -85,7 +109,12 @@ class Harvester(Role):
 
 
     def deposit(self, creep: Creep):
-        container = self.getClosestContainer(creep.pos)
+        areDistributors = len([creep for creep in Object.values(Game.creeps) if creep.memory.role == 'distributor']) > 0
+        container = None
+        if areDistributors:
+            container = self.getClosestContainer(creep.pos)
+        else:
+            container = self.findBestDeposit(creep)
 
         # Fallback to putting into spawn
         if not container:
@@ -101,7 +130,14 @@ class Harvester(Role):
                 pass
             else:
                 creep.say("t err: " + err)
-            
+
+    def findBestDeposit(self, creep: Creep):
+        spawn = creep.room.find(FIND_MY_SPAWNS)[0]
+        if spawn.store.getFreeCapacity() > 0:
+            return spawn
+        else:
+            return [struct for struct in creep.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_EXTENSION and struct.store.getFreeCapacity() > 0][0]
+
     def getOtherCreepDests(self):
         """
         Gets a list of object ids with which all creeps intend to interact with (creep.memory.dest specifically)
