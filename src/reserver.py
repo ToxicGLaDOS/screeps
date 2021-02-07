@@ -50,10 +50,21 @@ class Reserver(Role):
 
     def chooseTarget(self, creep: Creep):
         remoteRoom = Game.rooms[self.remoteRoom]
-        creep.memory.dest = remoteRoom.controller.id
+        creep.memory.dest = remoteRoom.controller.id if remoteRoom != None else None
 
     def reserve(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
+        # Target could be None here because we don't have vision on the room
+        if not target:
+            self.chooseTarget(creep)
+            target = Game.getObjectById(creep.memory.dest)
+            if not target:
+                roomExitDir = Game.map.findExit(creep.room, self.remoteRoom)
+                roomExit = creep.pos.findClosestByRange(roomExitDir)
+                creep.moveTo(roomExit)
+                creep.say("No target")
+                return
+
 
         err = creep.reserveController(target)
 
