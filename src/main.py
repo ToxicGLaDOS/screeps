@@ -29,7 +29,6 @@ def main():
         'stroke': '#000000',
         'strokeWidth': .15
     }
-
     spawnerRole = Spawner()
     # Clean up memory
     for creepName in Object.keys(Memory.creeps):
@@ -42,7 +41,7 @@ def main():
     # Run each creep
     for name in Object.keys(Game.creeps):
         creep = Game.creeps[name]
-        if Object.keys(Spawner.targetCreeps).includes(creep.memory.role):
+        if creep.memory.role in Spawner.roles:
             Spawner.roles[creep.memory.role].run(creep)
         else:
             creep.say("No role")

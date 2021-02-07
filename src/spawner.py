@@ -34,10 +34,7 @@ class Spawner(object):
     targetCreeps = {
         'harvester': 2,
         'distributor': 2,
-        'builder':   2,
-        'reserver': 1,
         'remoteHarvester': 5,
-        'upgrader': 3
     }
     def __init__(self):
         pass
@@ -52,7 +49,6 @@ class Spawner(object):
             if not role in roleAssignments:
                 roleAssignments[role] = 0
 
-        print(JSON.stringify(roleAssignments))
         remoteRoom = Game.getObjectById(Game.rooms['E42N41'])
         desiredUpgraders = math.floor([struct for struct in spawn.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_STORAGE][0].store.getUsedCapacity() / 10000)
         desiredBuilders = math.ceil(sum([site.progressTotal - site.progress for site in spawn.room.find(FIND_CONSTRUCTION_SITES)]) / 3000)

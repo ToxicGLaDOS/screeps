@@ -105,8 +105,8 @@ class RemoteHarvester(Role):
         
     def getClosestContainer(self, creep: Creep):
         homeRoom = Game.rooms[self.homeRoom]
-        structures = [struct for struct in homeRoom.find(FIND_STRUCTURES) if  
-                    [STRUCTURE_STORAGE].includes(struct.structureType) and self.getContainerFutureEnergy(struct) + creep.store.getUsedCapacity() <= struct.store.getCapacity()]
+        structures = [struct for struct in homeRoom.find(FIND_STRUCTURES) if
+                    struct.structureType in [STRUCTURE_STORAGE] and self.getContainerFutureEnergy(struct) + creep.store.getUsedCapacity() <= struct.store.getCapacity()]
         return structures[0] if structures != None else None
         #nonHarvesterContainers = [struct for struct in structures if len(struct.pos.findInRange(FIND_SOURCES, 4)) > 0]
         #if len(structures) == 0:

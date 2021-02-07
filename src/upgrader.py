@@ -111,7 +111,7 @@ class Upgrader(Role):
         
     def getClosestContainer(self, creep: Creep):
         structures = [struct for struct in creep.room.find(FIND_STRUCTURES) if  
-                    Object.keys(Upgrader.collectionPriority).includes(struct.structureType) and self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity()]
+                    struct.structureType in Upgrader.collectionPriority and self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity()]
         
 
         if len(structures) == 0:
@@ -132,7 +132,7 @@ class Upgrader(Role):
             return creep.pos.findClosestByPath(structures)
     
     def prioritizeCollection(self, structure: Structure):
-        if Object.keys(Upgrader.collectionPriority).includes(structure.structureType):
+        if structure.structureType in Upgrader.collectionPriority:
             return Upgrader.collectionPriority[structure.structureType]
         else:
             return float('inf')

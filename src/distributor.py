@@ -135,7 +135,7 @@ class Distributor(Role):
             return creep.pos.findClosestByPath(droppedResources)
         else:
             structures = [struct for struct in creep.room.find(FIND_STRUCTURES) if
-                        Object.keys(Distributor.collectionPriority).includes(struct.structureType) and
+                        struct.structureType in Distributor.collectionPriority and
                         (self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity() or self.getContainerFutureEnergy(struct) >= struct.store.getCapacity())]
 
             if len(structures) == 0:
@@ -155,15 +155,15 @@ class Distributor(Role):
                 return creep.pos.findClosestByPath(structures)
 
         def prioritizeCollection(self, structure: Structure):
-            if Object.keys(Distributor.collectionPriority).includes(structure.structureType):
+            if structure.structureType in Distributor.collectionPriority:
                 return Distributor.collectionPriority[structure.structureType]
             else:
                 return float('inf')
 
 
     def getBestDeposit(self, creep: Creep):
-        deposits = [struct for struct in creep.room.find(FIND_STRUCTURES) if 
-                    Object.keys(Distributor.depositPriority).includes(struct.structureType) and struct.store.getFreeCapacity(RESOURCE_ENERGY) > 0]
+        deposits = [struct for struct in creep.room.find(FIND_STRUCTURES) if
+                    struct.structureType in Distributor.depositPriority and struct.store.getFreeCapacity(RESOURCE_ENERGY) > 0]
         deposits = [struct for struct in deposits if struct.structureType != STRUCTURE_CONTAINER or len(struct.pos.findInRange(FIND_SOURCES, 4)) == 0]
         if len(deposits) == 0:
             return None
@@ -180,7 +180,7 @@ class Distributor(Role):
         return deposits[0]
     
     def prioritizeDeposit(self, structure: Structure):
-        if Object.keys(Distributor.depositPriority).includes(structure.structureType):
+        if structure.structureType in Distributor.depositPriority:
             return Distributor.depositPriority[structure.structureType]
         else:
             return float('inf')
