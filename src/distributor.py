@@ -20,7 +20,7 @@ class Distributor(Role):
     }
     depositPriority = {
         STRUCTURE_EXTENSION: 0,
-        STRUCTURE_SPAWN: 1,
+        STRUCTURE_SPAWN: 0,
         STRUCTURE_TOWER: 2,
         STRUCTURE_STORAGE: 3,
         STRUCTURE_CONTAINER: 4
@@ -119,6 +119,15 @@ class Distributor(Role):
                 creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#0000ff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             else:
                 creep.say("t err: " + err)
+        # If there is no error we choose a new target
+        # Either we gave it all our energy so we're empty
+        # or we still have energy and it's full
+        # in either case we want to choose a new target
+        # This is important because towers that are constantly shooting will never
+        # have their energy be full to hit the condition to switch targets
+        # that most other containers do at the top of this function
+        else:
+            self.chooseTarget(creep)
         
     def getClosestContainer(self, creep: Creep):
         droppedResources = creep.room.find(FIND_DROPPED_RESOURCES)
@@ -163,6 +172,7 @@ class Distributor(Role):
         # Would use min() but the javascript translation doesn't seem to use the key argument
         highestPriorityType = sorted(deposits, key=self.prioritizeDeposit)[0].structureType
         # Filter out low priority structures
+        # TODO: Make sure other creeps aren't going to fill it up like we do when checking for container to withdraw from
         deposits = [struct for struct in deposits if struct.structureType == highestPriorityType]
         return creep.pos.findClosestByPath(deposits)
 
