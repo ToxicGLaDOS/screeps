@@ -51,9 +51,9 @@ def main():
     # Run tower code
     homeRoom = Object.values(Game.spawns)[0].room
     towers = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_TOWER]
-    structures = sorted([struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES)], key=lambda struct: struct.hits)
     hostiles = homeRoom.find(FIND_HOSTILE_CREEPS)
     for tower in towers:
+        structures = sorted([struct for struct in tower.room.find(FIND_STRUCTURES) if struct.hits < struct.hitsMax], key=lambda struct: struct.hits)
         if len(hostiles) > 0:
             tower.attack(tower.pos.findClosestByPath(hostiles))
             continue
