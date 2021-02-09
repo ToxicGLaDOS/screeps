@@ -68,8 +68,7 @@ class Upgrader(Role):
             target = self.getClosestContainer(creep)
             creep.memory.dest = target.id if target != None else None
         elif creep.memory.curAction == "upgrading":
-            roomControllers = [struct for struct in creep.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTROLLER]
-            target = roomControllers[0] if len(roomControllers) > 0 else None
+            target = self.getBestController(creep)
             creep.memory.dest = target.id if target != None else None
     
 
@@ -98,6 +97,8 @@ class Upgrader(Role):
     def upgrade(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
         if not target:
+            self.chooseTarget(creep)
+            target = Game.getObjectById(creep.memory.dest)
             creep.say("No target")
             return
 
@@ -108,12 +109,32 @@ class Upgrader(Role):
                 creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ff00ff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             else:
                 creep.say("u err: " + err)
-        
-    def getClosestContainer(self, creep: Creep):
-        structures = [struct for struct in creep.room.find(FIND_STRUCTURES) if  
-                    struct.structureType in Upgrader.collectionPriority and self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity()]
-        
 
+    def getBestController(self, creep: Creep):
+        roomControllers = []
+        for room in Object.values(Game.rooms):
+            controllers = [struct for struct in room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTROLLER and struct.my]
+            if len(controllers) > 0:
+                roomControllers.append(controllers[0])
+        # Count how many creeps are using that controller as dest
+        controllersUsed = _.countBy([Game.getObjectById(creep.memory.dest) for creep in Object.values(Game.creeps) if Game.getObjectById(creep.memory.dest) in roomControllers])
+        # Put in controllers we missed as 0
+        for controller in roomControllers:
+            if controller not in controllersUsed:
+                controllersUsed[controller] = 0
+        # Find the min value
+        minUsed = min(Object.values(controllersUsed))
+        # Filter to only controllers who are use minValue times
+        minControllers = [controller for controller in roomControllers if controllersUsed[controller] == minUsed]
+        minControllers = sorted(minControllers, key=lambda controller: controller.level)
+        # Just pick the first one
+        target = minControllers[0]
+        return target
+
+    def getClosestContainer(self, creep: Creep):
+        structures = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if  
+                    struct.structureType in Upgrader.collectionPriority and self.getStructureFutureEnergy(struct) >= creep.store.getFreeCapacity()]
+        
         if len(structures) == 0:
             return None
         # Get the highest priority structure type
@@ -122,14 +143,13 @@ class Upgrader(Role):
         # Filter out low priority structures
         structures = [struct for struct in structures if struct.structureType == highestPriorityType]
         harvesterContainers = [struct for struct in structures if len(struct.pos.findInRange(FIND_SOURCES, 4)) > 0]
-
         # If there are containers near harvesters that are good we prioritize those
         # even if they're further away. This prevents creeps from repeatedly depositing and withdrawing
         # in the same container when they could be hauling from harvester containers
         if len(harvesterContainers) > 0:
-            return creep.pos.findClosestByPath(harvesterContainers)
+            return self.findClosestByPath(creep, harvesterContainers)
         else:
-            return creep.pos.findClosestByPath(structures)
+            return self.findClosestByPath(creep, structures)
     
     def prioritizeCollection(self, structure: Structure):
         if structure.structureType in Upgrader.collectionPriority:

@@ -18,6 +18,7 @@ from distributor import Distributor
 from upgrader import Upgrader
 from remoteHarvester import RemoteHarvester
 from reserver import Reserver
+from defender import Defender
 
 import math
 
@@ -27,14 +28,15 @@ class Spawner(object):
         'builder':   Builder(),
         'distributor': Distributor(),
         'upgrader': Upgrader(),
-        'remoteHarvester': RemoteHarvester('E41N41', 'E42N41'),
-        'reserver': Reserver('E41N41', 'E42N41')
+        'defender': Defender(),
+        'remoteHarvester': RemoteHarvester('E41N41', 'E42N42'),
+        'reserver': Reserver('E41N41', 'E42N42')
     }
 
     targetCreeps = {
-        'harvester': 2,
+        'harvester': 4,
         'distributor': 2,
-        'remoteHarvester': 5,
+        'remoteHarvester': 3,
     }
     def __init__(self):
         pass
@@ -50,11 +52,21 @@ class Spawner(object):
                 roleAssignments[role] = 0
 
         remoteRoom = Game.getObjectById(Game.rooms['E42N41'])
-        desiredUpgraders = math.floor([struct for struct in spawn.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_STORAGE][0].store.getUsedCapacity() / 10000)
-        desiredBuilders = math.ceil(sum([site.progressTotal - site.progress for site in spawn.room.find(FIND_CONSTRUCTION_SITES)]) / 3000)
-
+        storedEnergy = sum([struct.store.getUsedCapacity(RESOURCE_ENERGY) for room in Object.values(Game.rooms) for struct in spawn.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_STORAGE])
+        desiredUpgraders = 2 + math.floor(storedEnergy / 30000)
+        constructionSites = [site for room in Object.values(Game.rooms) for site in room.find(FIND_CONSTRUCTION_SITES)]
+        desiredBuilders = math.ceil(sum([site.progressTotal - site.progress for site in constructionSites]) / 10000)
+        halfHpStructures = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if struct.hits < struct.hitsMax and struct.structureType not in [STRUCTURE_WALL, STRUCTURE_RAMPART]]
+        desiredBuilders = max(desiredBuilders, math.ceil(len(halfHpStructures) / 10))
+        print(desiredBuilders)
+        if roleAssignments['harvesters'] == 0:
+            self.spawn(spawn, 'harvester')
+        elif roleAssignments['distributor'] == 0:
+            self.spawn(spawn, 'distributor')
+        elif roleAssignments['defender'] == 0:
+            self.spawn(spawn, 'defender')
         # Spawn harvesters if we don't have enough
-        if roleAssignments['harvester'] < Spawner.targetCreeps['harvester']:
+        elif roleAssignments['harvester'] < Spawner.targetCreeps['harvester']:
             self.spawn(spawn, 'harvester')
         # Spawn additional harvester if any are close to dying
         elif roleAssignments['harvester'] == Spawner.targetCreeps['harvester'] and any([creep.ticksToLive < 500 for creep in Object.values(Game.creeps) if creep.memory.role == 'harvester']):
@@ -78,7 +90,8 @@ class Spawner(object):
         elif roleAssignments['upgrader'] < desiredUpgraders:
             self.spawn(spawn, 'upgrader')
         else:
-            print("No desired creeps to spawn")
+            pass
+            #print("No desired creeps to spawn")
 
     def spawn(self, spawn: StructureSpawn, roleName: str):
         bodyParts = Spawner.roles[roleName].getBodyParts(spawn)
@@ -86,4 +99,10 @@ class Spawner(object):
         if cost <= spawn.room.energyAvailable:
             spawn.spawnCreep(bodyParts, roleName + "_" + Game.time, {'memory': {'role':roleName}})
         else:
-            print("Want to spawn: " + roleName)
+            textStyle = {
+                'color': '#ffffff',
+                'font': '10px',
+                'stroke': '#000000',
+                'strokeWidth': .15
+            }
+            spawn.room.visual.text(roleName, spawn.pos, textStyle)

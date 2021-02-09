@@ -55,13 +55,13 @@ class Builder(Role):
         creep.memory.curAction = "charging"
         self.chooseTarget(creep)
         
-    def findBuildSite(self, creep: Creep):
-        constructionSites = creep.room.find(FIND_CONSTRUCTION_SITES)
+    def getBuildSite(self, creep: Creep):
+        constructionSites = [site for room in Object.values(Game.rooms) for site in room.find(FIND_CONSTRUCTION_SITES)]
         constructionSites = sorted(constructionSites, key=self.prioritize)
         if len(constructionSites) > 0:
-            creep.memory.dest = constructionSites[0].id
+            return constructionSites[0]
         else:
-            creep.memory.dest = None
+            return None
 
     def prioritize(self, site:ConstructionSite):
         if site.structureType in Builder.priority:
@@ -75,17 +75,27 @@ class Builder(Role):
                 creep.say("init fail")
                 return
 
-        if creep.memory.curAction == "building" and creep.store.getUsedCapacity() == 0:
+        buildTarget = self.getBuildSite(creep)
+        if (creep.memory.curAction == "building" or creep.memory.curAction == "repairing") and creep.store.getUsedCapacity() == 0:
             creep.memory.curAction = "charging"
             self.chooseTarget(creep)
         elif creep.memory.curAction == "charging" and creep.store.getFreeCapacity() == 0:
             creep.memory.curAction = "building"
             self.chooseTarget(creep)
+            if creep.memory.dest == None:
+                creep.memory.curAction = "repairing"
+                self.chooseTarget(creep)
+        elif creep.memory.curAction == "repairing" and buildTarget != None:
+            creep.memory.curAction = "building"
+            self.chooseTarget(creep)
+
 
         if creep.memory.curAction == "building":
             self.build(creep)
         elif creep.memory.curAction == "charging":
             self.charge(creep)
+        elif creep.memory.curAction == "repairing":
+            self.repair(creep)
     
     def build(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
@@ -94,11 +104,11 @@ class Builder(Role):
         # or because there are no build sites left
         # or because we just spawned
         if target == None:
-            self.findBuildSite(creep)
+            self.chooseTarget(creep)
             target = Game.getObjectById(creep.memory.dest)
             # if still None then there's no sites left
             if target == None:
-                creep.say("no site")
+                creep.memory.curAction = "repairing"
                 return
 
         err = creep.build(target)
@@ -109,6 +119,24 @@ class Builder(Role):
                 self.chooseTarget(creep)
             else:
                 creep.say("b err: " + err) 
+
+    def repair(self, creep: Creep):
+        target = Game.getObjectById(creep.memory.dest)
+        if not target or target.hits == target.hitsMax:
+            self.chooseTarget(creep)
+            target = Game.getObjectById(creep.memory.dest)
+            if not target:
+                creep.say("No target")
+                return
+
+
+
+        err = creep.repair(target)
+        if err != OK:
+            if err == ERR_NOT_IN_RANGE:
+                creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#0000ff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
+            else:
+                creep.say("r err:" + err)
 
 
     def charge(self, creep: Creep):
@@ -135,13 +163,22 @@ class Builder(Role):
     
     def chooseTarget(self, creep: Creep):
         if creep.memory.curAction == "building":
-            target = self.findBuildSite(creep)
+            target = self.getBuildSite(creep)
             creep.memory.dest = target.id if target != None else None
         elif creep.memory.curAction == "charging":
             target = self.getClosestContainer(creep)
             creep.memory.dest = target.id if target != None else None
+        elif creep.memory.curAction == "repairing":
+            target = self.findRepairTarget(creep)
+            creep.memory.dest = target.id if target != None else None
     
     def getClosestContainer(self, creep: Creep):
-        containers = [struct for struct in creep.room.find(FIND_STRUCTURES) if (struct.structureType == STRUCTURE_CONTAINER or struct.structureType == STRUCTURE_STORAGE) and self.getContainerFutureEnergy(struct) > creep.store.getFreeCapacity(RESOURCE_ENERGY)]
+        containers = [struct for struct in creep.room.find(FIND_STRUCTURES) if (struct.structureType == STRUCTURE_CONTAINER or struct.structureType == STRUCTURE_STORAGE) and self.getStructureFutureEnergy(struct) > creep.store.getFreeCapacity(RESOURCE_ENERGY)]
 
         return creep.pos.findClosestByPath(containers)
+    
+    def findRepairTarget(self, creep: Creep):
+        structures = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if struct.hits < struct.hitsMax]
+        structures = sorted(structures, key=lambda struct: struct.hits)
+        target = structures[0]
+        return target

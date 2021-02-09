@@ -33,8 +33,10 @@ def main():
     # Clean up memory
     for creepName in Object.keys(Memory.creeps):
         if not Game.creeps[creepName]:
+            if Memory.creeps[creepName].role == "remoteHarvester":
+                print("Cleaning up remoteHarvester. It mined: " + Memory.creeps[creepName].totalHarvested)
             del Memory.creeps[creepName]
-            print("Clearing non-existent creep memory: " + creepName)
+            #print("Clearing non-existent creep memory: " + creepName)
 
     if Game.cpu.bucket == 10000:
         Game.cpu.generatePixel()
@@ -48,23 +50,26 @@ def main():
 
     # Run tower code
     homeRoom = Object.values(Game.spawns)[0].room
-    towers = [struct for struct in homeRoom.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_TOWER]
-    structures = sorted(homeRoom.find(FIND_STRUCTURES), key=lambda struct: struct.hits)
+    towers = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_TOWER]
+    structures = sorted([struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES)], key=lambda struct: struct.hits)
     hostiles = homeRoom.find(FIND_HOSTILE_CREEPS)
     for tower in towers:
+        if len(hostiles) > 0:
+            tower.attack(tower.pos.findClosestByPath(hostiles))
+            continue
+
         for structure in structures:
             if structure.hits < structure.hitsMax and structure.hits < 100000:
                 tower.repair(structure)
                 break
-        if len(hostiles) > 0:
-            tower.rangedAttack(tower.pos.findClosestByPath(hostiles))
-            break
+
     # Run visuals
-    for container in [struct for struct in homeRoom.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER or struct.structureType == STRUCTURE_STORAGE]:
-        homeRoom.visual.text(Spawner.roles['harvester'].getContainerFutureEnergy(container), container.pos, containerTextStyle)
+    for room in Object.values(Game.rooms):
+        for container in [struct for struct in room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_CONTAINER or struct.structureType == STRUCTURE_STORAGE]:
+            room.visual.text(Spawner.roles['harvester'].getStructureFutureEnergy(container), container.pos, containerTextStyle)
 
     # Run each spawn
-    for name in Object.keys(Game.spawns):
+    for name in Object.keys(Game.spawns)[0:1]:
         spawn = Game.spawns[name]
         spawnerRole.run(spawn)
 

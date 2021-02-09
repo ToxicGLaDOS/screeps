@@ -4,6 +4,7 @@ __pragma__('noalias', 'name')
 __pragma__('noalias', 'undefined')
 __pragma__('noalias', 'Infinity')
 __pragma__('noalias', 'keys')
+__pragma__('noalias', 'values')
 __pragma__('noalias', 'get')
 __pragma__('noalias', 'set')
 __pragma__('noalias', 'type')
@@ -41,11 +42,21 @@ class Role(object):
         print("Role.getBodyParts shouldn't be called directly. This method is supposed to be overridden.")
     
 
-    def getContainerFutureEnergy(self, container: StructureContainer):
-        creepsTargetingContainer = [Game.creeps[creepName] for creepName in Object.keys(Game.creeps) if Game.creeps[creepName].memory.dest == container.id]
+    def getStructureFutureEnergy(self, structure: Structure):
+        if structure.store == None:
+            return None
+        
+        creepsTargetingContainer = [Game.creeps[creepName] for creepName in Object.keys(Game.creeps) if Game.creeps[creepName].memory.dest == structure.id]
         creepsWithdrawing = [creep for creep in creepsTargetingContainer if creep.memory.curAction == "charging"]
         creepsDepositing = [creep for creep in creepsTargetingContainer if creep.memory.curAction == "distributing" or creep.memory.curAction == "depositing"]
         totalWithdrawAmount = sum([creep.store.getFreeCapacity(RESOURCE_ENERGY) for creep in creepsWithdrawing])
         totalDepositAmount  = sum([creep.store.getUsedCapacity(RESOURCE_ENERGY) for creep in creepsDepositing])
 
-        return container.store.getUsedCapacity(RESOURCE_ENERGY)  + totalDepositAmount - totalWithdrawAmount
+        return structure.store.getUsedCapacity(RESOURCE_ENERGY)  + totalDepositAmount - totalWithdrawAmount
+
+    def findClosestByPath(self, creep: Creep, targets: list, opt={}):
+        pathObjs = {target:PathFinder.search(creep.pos, target, opt).cost for target in targets}
+        minValue = min(Object.values(pathObjs))
+        minDist = [target for target in targets if pathObjs[target] == minValue]
+        return minDist[0]
+    

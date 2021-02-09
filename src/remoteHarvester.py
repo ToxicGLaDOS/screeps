@@ -88,6 +88,10 @@ class RemoteHarvester(Role):
                 creep.moveTo(target, {'visualizePathStyle': {'fill': 'transparent','stroke': '#ffffff', 'lineStyle': 'dashed', 'strokeWidth': .15, 'opacity': .1}})
             else:
                 creep.say("h err: " + err)
+        else:
+            if creep.memory.totalHarvested == None:
+                creep.memory.totalHarvested = 0
+            creep.memory.totalHarvested += min(HARVEST_POWER*len(part for part in creep.body if part == WORK), creep.store.getFreeCapacity())
 
     def deposit(self, creep: Creep):
         target = Game.getObjectById(creep.memory.dest)
@@ -106,7 +110,7 @@ class RemoteHarvester(Role):
     def getClosestContainer(self, creep: Creep):
         homeRoom = Game.rooms[self.homeRoom]
         structures = [struct for struct in homeRoom.find(FIND_STRUCTURES) if
-                    struct.structureType in [STRUCTURE_STORAGE] and self.getContainerFutureEnergy(struct) + creep.store.getUsedCapacity() <= struct.store.getCapacity()]
+                    struct.structureType in [STRUCTURE_STORAGE] and self.getStructureFutureEnergy(struct) + creep.store.getUsedCapacity() <= struct.store.getCapacity()]
         return structures[0] if structures != None else None
         #nonHarvesterContainers = [struct for struct in structures if len(struct.pos.findInRange(FIND_SOURCES, 4)) > 0]
         #if len(structures) == 0:
@@ -120,7 +124,6 @@ class RemoteHarvester(Role):
     def getBestSource(self, creep: Creep):
         remoteRoom = Game.rooms[self.remoteRoom]
         if remoteRoom == None:
-            creep.say("bad remote")
             return None
         creepDests = [creep.memory.dest for creep in Object.values(Game.creeps)]
         sources = remoteRoom.find(FIND_SOURCES)
@@ -132,9 +135,5 @@ class RemoteHarvester(Role):
         useCounts = {source.id:len([dest for dest in creepDests if dest == source.id]) for source in sources}
         minValue = min(Object.values(useCounts))
         minUsed = [Game.getObjectById(sourceID) for sourceID in Object.keys(useCounts) if useCounts[sourceID] == minValue]
-        # We ignore creeps because we don't want creeps to be the reason a location doesn't get picked (they'll move soon enough hopefully)
-        #target = creep.pos.findClosestByPath(minUsed, {'ignoreCreeps': True})
-        # TODO: Figuring out how to make this based on distance instead of using [0] would be good
-        # The problem is that findClosestByPath doesn't work across rooms
-        target = minUsed[0] 
+        target = self.findClosestByPath(creep, minUsed)
         return target

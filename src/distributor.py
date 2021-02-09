@@ -21,7 +21,7 @@ class Distributor(Role):
     depositPriority = {
         STRUCTURE_EXTENSION: 0,
         STRUCTURE_SPAWN: 0,
-        STRUCTURE_TOWER: 2,
+        STRUCTURE_TOWER: 2, # only for more than half empty towers
         STRUCTURE_STORAGE: 3,
         STRUCTURE_CONTAINER: 4
     }
@@ -130,14 +130,13 @@ class Distributor(Role):
             self.chooseTarget(creep)
         
     def getClosestContainer(self, creep: Creep):
-        droppedResources = creep.room.find(FIND_DROPPED_RESOURCES)
+        droppedResources = [resource for resource in creep.room.find(FIND_DROPPED_RESOURCES) if resource.resourceType == RESOURCE_ENERGY]
         if len(droppedResources) > 0:
             return creep.pos.findClosestByPath(droppedResources)
         else:
-            structures = [struct for struct in creep.room.find(FIND_STRUCTURES) if
+            structures = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if
                         struct.structureType in Distributor.collectionPriority and
-                        (self.getContainerFutureEnergy(struct) >= creep.store.getFreeCapacity() or self.getContainerFutureEnergy(struct) >= struct.store.getCapacity())]
-
+                        (self.getStructureFutureEnergy(struct) >= creep.store.getFreeCapacity() or self.getStructureFutureEnergy(struct) >= struct.store.getCapacity())]
             if len(structures) == 0:
                 return None
             # Get the highest priority structure type
@@ -150,9 +149,9 @@ class Distributor(Role):
             # even if they're further away. This prevents creeps from repeatedly depositing and withdrawing
             # in the same container when they could be hauling from harvester containers
             if len(harvesterContainers) > 0:
-                return creep.pos.findClosestByPath(harvesterContainers)
+                return self.findClosestByPath(creep, harvesterContainers)
             else:
-                return creep.pos.findClosestByPath(structures)
+                return self.findClosestByPath(creep, structures)
 
         def prioritizeCollection(self, structure: Structure):
             if structure.structureType in Distributor.collectionPriority:
@@ -162,24 +161,30 @@ class Distributor(Role):
 
 
     def getBestDeposit(self, creep: Creep):
-        deposits = [struct for struct in creep.room.find(FIND_STRUCTURES) if
-                    struct.structureType in Distributor.depositPriority and struct.store.getFreeCapacity(RESOURCE_ENERGY) > 0]
+        deposits = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if
+                    struct.structureType in Distributor.depositPriority and self.getStructureFutureEnergy(struct) < struct.store.getCapacity(RESOURCE_ENERGY)]
         deposits = [struct for struct in deposits if struct.structureType != STRUCTURE_CONTAINER or len(struct.pos.findInRange(FIND_SOURCES, 4)) == 0]
         if len(deposits) == 0:
             return None
-
         # Get the highest priority structure type
         # Would use min() but the javascript translation doesn't seem to use the key argument
         highestPriorityType = sorted(deposits, key=self.prioritizeDeposit)[0].structureType
+        # Account for some priorities being equal
+        highestPriorityTypes = [structType for structType in Object.keys(Distributor.depositPriority) if Distributor.depositPriority[structType] == Distributor.depositPriority[highestPriorityType]]
         # Filter out low priority structures
         # TODO: Make sure other creeps aren't going to fill it up like we do when checking for container to withdraw from
-        deposits = [struct for struct in deposits if struct.structureType == highestPriorityType]
-        return creep.pos.findClosestByPath(deposits)
+        deposits = [struct for struct in deposits if struct.structureType in highestPriorityTypes]
+        return self.findClosestByPath(creep, deposits)
 
 
         return deposits[0]
     
     def prioritizeDeposit(self, structure: Structure):
+        if structure.structureType == STRUCTURE_TOWER:
+            if structure.store.getUsedCapacity(RESOURCE_ENERGY) < structure.store.getCapacity(RESOURCE_ENERGY) / 2:
+                return Distributor.depositPriority[structure.structureType]
+            else:
+                return Distributor.depositPriority[STRUCTURE_STORAGE] + 1
         if structure.structureType in Distributor.depositPriority:
             return Distributor.depositPriority[structure.structureType]
         else:

@@ -28,6 +28,11 @@ class Harvester(Role):
             extraWorks = min(extraWorks, 9)
             for x in range(extraWorks):
                 base.append(WORK)
+            cost = sum([BODYPART_COST[part] for part in base])
+            extraMoves = math.floor(spawner.room.energyCapacityAvailable - cost / BODYPART_COST[MOVE])
+            extraMoves = min(extraMoves, extraWorks)
+            for x in range(extraMoves):
+                base.append(MOVE)
             return base
         else:
             nextPart = MOVE
@@ -54,7 +59,7 @@ class Harvester(Role):
         creep.memory.role = "harvester"
         creep.memory.curAction = "harvesting"
         creepDests = self.getOtherCreepDests()
-        sources = creep.room.find(FIND_SOURCES)
+        sources = [source for room in Object.values(Game.rooms) if room.controller and room.controller.my for source in room.find(FIND_SOURCES)]
         if not sources:
             return False
 
@@ -133,10 +138,11 @@ class Harvester(Role):
 
     def findBestDeposit(self, creep: Creep):
         spawn = creep.room.find(FIND_MY_SPAWNS)[0]
-        if spawn.store.getFreeCapacity() > 0:
+        if spawn and spawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0:
             return spawn
+        #TODO: There's technically a bug here where creeps in a room without a spawn or extensions will return None, but the None case returns them to spawn in harvest() so /shrug
         else:
-            return [struct for struct in creep.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_EXTENSION and struct.store.getFreeCapacity() > 0][0]
+            return [struct for struct in creep.room.find(FIND_STRUCTURES) if struct.structureType == STRUCTURE_EXTENSION and struct.store.getFreeCapacity(RESOURCE_ENERGY) > 0][0]
 
     def getOtherCreepDests(self):
         """
