@@ -44,7 +44,7 @@ class Spawner(object):
     def run(self, spawn: StructureSpawn):
         if spawn.spawning:
             return
-        
+
         creepRoles = [creep.memory.role for creep in Object.values(Game.creeps)]
         roleAssignments = dict(_.countBy(creepRoles))
         for role in Object.keys(Spawner.roles):
@@ -56,9 +56,9 @@ class Spawner(object):
         desiredUpgraders = 2 + math.floor(storedEnergy / 30000)
         constructionSites = [site for room in Object.values(Game.rooms) for site in room.find(FIND_CONSTRUCTION_SITES)]
         desiredBuilders = math.ceil(sum([site.progressTotal - site.progress for site in constructionSites]) / 10000)
-        halfHpStructures = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if struct.hits < struct.hitsMax and struct.structureType not in [STRUCTURE_WALL, STRUCTURE_RAMPART]]
+        halfHpStructures = [struct for room in Object.values(Game.rooms) for struct in room.find(FIND_STRUCTURES) if struct.hits < struct.hitsMax / 2 and struct.structureType not in [STRUCTURE_WALL, STRUCTURE_RAMPART]]
         desiredBuilders = max(desiredBuilders, math.ceil(len(halfHpStructures) / 10))
-        print(desiredBuilders)
+        
         if roleAssignments['harvesters'] == 0:
             self.spawn(spawn, 'harvester')
         elif roleAssignments['distributor'] == 0:
